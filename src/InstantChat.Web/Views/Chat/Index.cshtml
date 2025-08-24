@@ -1,0 +1,607 @@
+﻿@using InstantChat.Application.Features.Groups.Queries.GetOnlineUsers
+@{
+    ViewData["Title"] = "Private Chat";
+    Layout = "_Layout";
+    var users = ViewBag.Users as IEnumerable<UserDto>;
+}
+
+<div class="row h-100" style="height: calc(100vh - 200px);">
+    <div class="col-lg-3 col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Online Users</h5>
+                <small class="badge bg-light text-primary" id="userCount">@ViewBag.Users.Count</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" id="usersList" style="height: 400px; overflow-y: auto;">
+                    @foreach (var user in ViewBag.Users)
+                    {
+                        <button type="button" id="userBtn" class="list-group-item list-group-item-action user-item d-flex justify-content-between align-items-center"
+                                data-user-id="@user.Id" data-user-name="@user.DisplayName">
+                            <div class="d-flex align-items-center">
+                                <div class="user-avatar me-3">
+                                    <i class="fas fa-user-circle fa-2x text-secondary"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold">@user.DisplayName</div>
+                                    <small class="text-muted">@(user.IsOnline ? "Online" : "Offline")</small>
+                                </div>
+                            </div>
+                            <div class="status-indicator">
+                                <i class="fas fa-circle @(user.IsOnline ? "text-success" : "text-muted")" style="font-size: 0.8rem;"></i>
+                            </div>
+                        </button>
+                    }
+                    @if (!users.Any())
+                    {
+                        <div class="p-3 text-center text-muted">
+                            <i class="fas fa-user-friends fa-2x mb-2"></i>
+                            <p class="mb-0">No other users online</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-9 col-md-8">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-light" id="chatHeader">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-comments me-2"></i>Select a user to start chatting</h5>
+                    <div class="chat-actions" id="chatActions" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary" id="clearChatBtn">
+                            <i class="fas fa-broom me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+                <div id="typingIndicator" class="typing-indicator mt-1" style="display: none;">
+                    <small class="text-primary">
+                        <i class="fas fa-ellipsis-h typing-dots me-2"></i>
+                        <span class="typing-user"></span> is typing...
+                    </small>
+                </div>
+            </div>
+
+            <div class="card-body p-0 d-flex flex-column">
+                <!-- Loading indicator for older messages -->
+                <div id="loadingIndicator" class="text-center p-3 bg-light border-bottom" style="display: none;">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <small class="text-muted">Loading older messages...</small>
+                </div>
+
+                <!-- Chat messages container -->
+                <div id="chatMessages" class="chat-messages flex-grow-1 p-3" style="height: 400px; overflow-y: auto;">
+                    <div class="text-center text-muted py-5" id="welcomeMessage">
+                        <i class="fas fa-comment-alt fa-4x mb-3 text-primary opacity-50"></i>
+                        <h5>Welcome to ChatApp!</h5>
+                        <p class="mb-0">Select a user from the list to start a conversation.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Message input area -->
+            <div class="card-footer bg-white border-top" id="messageInputContainer" style="display: none;">
+                <!-- Image preview area -->
+                <div id="imagePreview" class="mb-3" style="display: none;">
+                    <div class="position-relative d-inline-block">
+                        <img id="previewImg" src="" alt="Image preview" class="img-thumbnail rounded"
+                             style="max-height: 150px; max-width: 200px;" />
+                        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0 rounded-circle"
+                                id="removeImageBtn" style="transform: translate(50%, -50%); width: 25px; height: 25px;">
+                            <i class="fas fa-times" style="font-size: 0.7rem;"></i>
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <input type="text" class="form-control" id="imageCaption"
+                               placeholder="Add a caption (optional)..." maxlength="200" />
+                        <div class="form-text">Image caption (optional)</div>
+                    </div>
+                </div>
+
+                <!-- Message input -->
+                <div class="input-group">
+                    <input type="text" class="form-control" id="messageInput"
+                           placeholder="Type your message..." maxlength="1000" />
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;" />
+                    <button class="btn btn-outline-secondary" type="button" id="imageButton" title="Send Image">
+                        <i class="fas fa-image"></i>
+                    </button>
+                    <button class="btn btn-primary" type="button" id="sendButton">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="form-text mt-1">
+                    <small class="text-muted">Press Enter to send • Max 1000 characters • Images up to 5MB</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder().withUrl("/chatHub").build();
+        let currentReceiverId = null;
+        let currentReceiverName = null;
+        const currentUserId = "@ViewBag.CurrentUserId";
+        const currentUserName = "@ViewBag.CurrentUserName";
+        let typingTimer;
+        let selectedImageFile = null;
+
+        // Pagination state
+        let isLoadingMessages = false;
+        let hasMoreMessages = true;
+        let oldestMessageId = null;
+        let totalMessageCount = 0;
+        let currentOffset = 0;
+
+        // Start SignalR connection
+        connection.start().then(function () {
+            console.log("Connected to ChatHub");
+        }).catch(function (err) {
+            console.error("Connection failed:", err);
+            showError("Failed to connect to chat server. Please refresh the page.");
+        });
+
+        // SignalR event handlers
+        connection.on("ReceiveMessage", function (senderId, senderName, message, timestamp, imagePath) {
+            if (currentReceiverId === senderId || senderId === currentUserId) {
+                appendNewMessage(senderId, senderName, message, timestamp, imagePath);
+            }
+        });
+
+        connection.on("UserConnected", function (userId, userName) {
+            updateUserStatus(userId, true);
+        });
+
+        connection.on("UserDisconnected", function (userId, userName) {
+            updateUserStatus(userId, false);
+        });
+
+        connection.on("NotifyTyping", function (userId, userName, isTyping) {
+            if (userId === currentReceiverId) {
+                showTypingIndicator(userName, isTyping);
+            }
+        });
+
+        // DOM ready
+        document.addEventListener("DOMContentLoaded", function() {
+            const chatMessages = document.getElementById("chatMessages");
+
+            // User selection
+            document.querySelectorAll(".user-item").forEach(function(item) {
+                item.addEventListener("click", function() {
+                    const userId = this.getAttribute("data-user-id");
+                    const userName = this.getAttribute("data-user-name");
+                    selectUser(userId, userName);
+                });
+            });
+
+            // Message sending
+            document.getElementById("sendButton").addEventListener("click", sendMessage);
+            document.getElementById("messageInput").addEventListener("keypress", function(e) {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+                handleTyping();
+            });
+
+            // Image upload handling
+            document.getElementById("imageButton").addEventListener("click", function() {
+                document.getElementById("imageInput").click();
+            });
+
+            document.getElementById("imageInput").addEventListener("change", handleImageSelect);
+            document.getElementById("removeImageBtn").addEventListener("click", removeSelectedImage);
+
+            // Infinite scroll detection
+            chatMessages.addEventListener("scroll", function() {
+                if (chatMessages.scrollTop <= 100 && hasMoreMessages && !isLoadingMessages && currentReceiverId) {
+                    loadMoreMessages();
+                }
+            });
+        });
+
+        function selectUser(userId, userName) {
+            currentReceiverId = userId;
+            currentReceiverName = userName;
+
+            // Reset pagination state
+            resetPaginationState();
+
+            // Update UI
+            updateUserSelection(userId);
+            updateChatHeader(userName);
+            showMessageInput();
+
+            // Load chat history
+            loadChatHistory(userId, null, true);
+        }
+
+        function sendMessage() {
+            if (selectedImageFile) {
+                sendImageMessage();
+            } else {
+                sendTextMessage();
+            }
+        }
+
+        function sendTextMessage() {
+            const messageInput = document.getElementById("messageInput");
+            const message = messageInput.value.trim();
+
+            if (message && currentReceiverId) {
+                connection.invoke("SendMessageToUser", currentReceiverId, message)
+                    .then(() => {
+                        messageInput.value = "";
+                        stopTypingNotification();
+                    })
+                    .catch(err => {
+                        console.error("Failed to send message:", err);
+                        showError("Failed to send message. Please try again.");
+                    });
+            }
+        }
+
+        function sendImageMessage() {
+            if (!selectedImageFile || !currentReceiverId) return;
+
+            const formData = new FormData();
+            formData.append('imageFile', selectedImageFile);
+            formData.append('receiverId', currentReceiverId);
+            formData.append('caption', document.getElementById("imageCaption").value || '');
+
+            // Show loading state
+            const sendButton = document.getElementById("sendButton");
+            const originalContent = sendButton.innerHTML;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            sendButton.disabled = true;
+
+            fetch('/Chat/SendImageMessage', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    removeSelectedImage();
+                    document.getElementById("messageInput").value = "";
+                } else {
+                    showError(data.message || "Failed to send image");
+                }
+            })
+            .catch(error => {
+                console.error("Error sending image:", error);
+                showError("Failed to send image. Please try again.");
+            })
+            .finally(() => {
+                // Restore button state
+                sendButton.innerHTML = originalContent;
+                sendButton.disabled = false;
+            });
+        }
+
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file
+            if (!file.type.startsWith('image/')) {
+                showError("Please select a valid image file.");
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) { // 5MB
+                showError("Image size must be less than 5MB.");
+                return;
+            }
+
+            selectedImageFile = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById("previewImg").src = e.target.result;
+                document.getElementById("imagePreview").style.display = "block";
+                document.getElementById("messageInput").placeholder = "Add a caption (optional)...";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeSelectedImage() {
+            selectedImageFile = null;
+            document.getElementById("imageInput").value = "";
+            document.getElementById("imagePreview").style.display = "none";
+            document.getElementById("imageCaption").value = "";
+            document.getElementById("messageInput").placeholder = "Type your message...";
+        }
+
+        function loadChatHistory(userId, groupId, isInitialLoad = false) {
+            if (isLoadingMessages && !isInitialLoad) return;
+
+            isLoadingMessages = true;
+            const loadingIndicator = document.getElementById("loadingIndicator");
+            if (!isInitialLoad) {
+                loadingIndicator.style.display = "block";
+            }
+
+            let url = `/Chat/GetChatHistory?userId=${userId || ''}&groupId=${groupId || ''}`;
+
+            // Add pagination parameters
+            if (!isInitialLoad && oldestMessageId) {
+                url += `&beforeMessageId=${oldestMessageId}`;
+            } else if (!isInitialLoad) {
+                url += `&offset=${currentOffset}`;
+            }
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (isInitialLoad) {
+                            displayInitialMessages(data.messages);
+                        } else {
+                            prependMessages(data.messages);
+                        }
+
+                        hasMoreMessages = data.hasMoreMessages;
+                        totalMessageCount = data.totalCount;
+
+                        if (data.messages.length > 0) {
+                            oldestMessageId = data.messages[0].id;
+                            currentOffset += data.messages.length;
+                        }
+                    } else {
+                        console.error('Error loading chat history:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat history:', error);
+                })
+                .finally(() => {
+                    // debugger
+                    isLoadingMessages = false;
+                    loadingIndicator.style.display = "none";
+                    if(isInitialLoad){
+                        const messagesContainer = document.getElementById("chatMessages");
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                });
+        }
+
+        function displayInitialMessages(messages) {
+            const messagesContainer = document.getElementById("chatMessages");
+            const welcomeMessage = document.getElementById("welcomeMessage");
+
+            if (welcomeMessage) {
+                welcomeMessage.style.display = "none";
+            }
+
+            // Clear existing messages
+            const existingMessages = messagesContainer.querySelectorAll(".message");
+            existingMessages.forEach(msg => msg.remove());
+
+            messages.forEach(msg => {
+                appendMessage(msg.senderId, msg.senderName, msg.content, msg.timestamp, msg.imageUrl, false);
+            });
+
+            // Scroll to bottom for initial load
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function prependMessages(messages) {
+            const messagesContainer = document.getElementById("chatMessages");
+            const currentScrollHeight = messagesContainer.scrollHeight;
+            const currentScrollTop = messagesContainer.scrollTop;
+
+            // Prepend messages in reverse order (oldest first)
+            messages.reverse().forEach(msg => {
+                const messageDiv = createMessageElement(msg.senderId, msg.senderName, msg.content, msg.timestamp, msg.imageUrl);
+                messagesContainer.insertBefore(messageDiv, messagesContainer.firstChild);
+            });
+
+            // Maintain scroll position
+            const newScrollHeight = messagesContainer.scrollHeight;
+            messagesContainer.scrollTop = currentScrollTop + (newScrollHeight - currentScrollHeight);
+        }
+
+        function appendNewMessage(senderId, senderName, message, timestamp, imagePath) {
+            appendMessage(senderId, senderName, message, timestamp, imagePath, true);
+        }
+
+        function appendMessage(senderId, senderName, message, timestamp, imagePath, scrollToBottom = true) {
+            const messagesContainer = document.getElementById("chatMessages");
+            const messageDiv = createMessageElement(senderId, senderName, message, timestamp, imagePath);
+
+            // Clear welcome message if it exists
+            const welcomeMessage = document.getElementById("welcomeMessage");
+            if (welcomeMessage && welcomeMessage.style.display !== "none") {
+                welcomeMessage.style.display = "none";
+            }
+
+            messagesContainer.appendChild(messageDiv);
+
+            if (scrollToBottom) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+
+        function createMessageElement(senderId, senderName, message, timestamp, imagePath) {
+            const isOwnMessage = senderId === currentUserId;
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message mb-3 ${isOwnMessage ? 'own-message' : 'other-message'}`;
+
+            let messageContent = '';
+
+            // Handle image messages
+            if (imagePath) {
+                messageContent += `
+                    <div class="message-image mb-2">
+                        <img src="${imagePath}" alt="Shared image" class="img-fluid rounded message-img"
+                             style="max-width: 200px; max-height: 200px; cursor: pointer;"
+                             onclick="showImageModal('${imagePath}')" />
+                    </div>
+                `;
+            }
+
+            // Handle text content
+            if (message && message.trim()) {
+                messageContent += `<div class="message-text">${escapeHtml(message)}</div>`;
+            }
+
+            messageDiv.innerHTML = `
+                <div class="message-content p-3 rounded ${isOwnMessage ? 'bg-primary text-white ms-auto' : 'bg-light'}">
+                    ${messageContent}
+                    <small class="message-time d-block mt-1 ${isOwnMessage ? 'text-white-50' : 'text-muted'}">
+                        ${timestamp}
+                    </small>
+                </div>
+            `;
+
+            return messageDiv;
+        }
+
+        // Utility functions
+        function resetPaginationState() {
+            isLoadingMessages = false;
+            hasMoreMessages = true;
+            oldestMessageId = null;
+            totalMessageCount = 0;
+            currentOffset = 0;
+        }
+
+        function updateUserSelection(userId) {
+            document.querySelectorAll(".user-item").forEach(function(item) {
+                item.classList.remove("active", "bg-primary", "text-white");
+            });
+            const selectedUser = document.querySelector(`[data-user-id="${userId}"]`);
+            if (selectedUser) {
+                selectedUser.classList.add("active", "bg-primary", "text-white");
+            }
+        }
+
+        function updateChatHeader(userName) {
+             const chatHeader = document.getElementById("chatHeader");
+            document.getElementById("chatHeader").innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Chat with ${userName}
+                    </h5>
+                    <div class="chat-actions" id="chatActions">
+                        <button class="btn btn-sm btn-outline-primary" id="clearChatBtn">
+                            <i class="fas fa-broom me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+                <div id="typingIndicator" class="typing-indicator mt-1" style="display: none;">
+                    <small class="text-primary">
+                        <i class="fas fa-ellipsis-h typing-dots me-2"></i>
+                        <span class="typing-user"></span> is typing...
+                    </small>
+                </div>
+            `;
+        }
+
+        function showMessageInput() {
+            document.getElementById("messageInputContainer").style.display = "block";
+            document.getElementById("chatActions").style.display = "block";
+        }
+
+        function handleTyping() {
+            clearTimeout(typingTimer);
+            if (currentReceiverId) {
+                connection.invoke("NotifyTyping", currentReceiverId, null, true);
+                typingTimer = setTimeout(() => {
+                    connection.invoke("NotifyTyping", currentReceiverId, null, false);
+                }, 1000);
+            }
+        }
+
+        function stopTypingNotification() {
+            if (currentReceiverId) {
+                connection.invoke("NotifyTyping", currentReceiverId, null, false);
+            }
+        }
+
+        function showTypingIndicator(userName, isTyping) {
+            const indicator = document.getElementById("typingIndicator");
+            const userSpan = indicator.querySelector(".typing-user");
+
+            if (isTyping) {
+                userSpan.textContent = userName;
+                indicator.style.display = "block";
+            } else {
+                indicator.style.display = "none";
+            }
+        }
+
+        function updateUserStatus(userId, isOnline) {
+            const userItem = document.querySelector(`[data-user-id="${userId}"]`);
+            if (userItem) {
+                const statusIndicator = userItem.querySelector(".status-indicator i");
+                const statusText = userItem.querySelector(".text-muted");
+
+                if (isOnline) {
+                    statusIndicator.className = "fas fa-circle text-success";
+                    statusText.textContent = "Online";
+                } else {
+                    statusIndicator.className = "fas fa-circle text-muted";
+                    statusText.textContent = "Offline";
+                }
+            }
+        }
+
+        function showError(message) {
+            alert('Error: ' + message);
+        }
+
+        function loadMoreMessages() {
+            if (currentReceiverId) {
+                loadChatHistory(currentReceiverId, null, false);
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Image modal for viewing full-size images
+        function showImageModal(imagePath) {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Image</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <img src="${imagePath}" alt="Full size image" class="img-fluid" />
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const bootstrapModal = new bootstrap.Modal(modal);
+            bootstrapModal.show();
+
+            modal.addEventListener('hidden.bs.modal', () => {
+                document.body.removeChild(modal);
+            });
+        }
+    </script>
+}

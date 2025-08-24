@@ -1,0 +1,131 @@
+﻿@model InstantChat.Web.Models.LoginViewModel
+
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_Layout";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-5 col-md-7">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0 text-center">
+                    <i class="fas fa-sign-in-alt me-2"></i>Welcome Back
+                </h3>
+                <p class="text-center mb-0 mt-2 opacity-75">Sign in to your account</p>
+            </div>
+            <div class="card-body p-4">
+                <form asp-action="Login" method="post">
+                    <div asp-validation-summary="All" class="alert alert-danger" role="alert" style="display:none;"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="Email" class="form-label fw-semibold">
+                            <i class="fas fa-envelope me-1"></i>Email Address
+                        </label>
+                        <input asp-for="Email" class="form-control form-control-lg" placeholder="Enter your email"
+                               autocomplete="username" autofocus />
+                        <span asp-validation-for="Email" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label fw-semibold">
+                            <i class="fas fa-lock me-1"></i>Password
+                        </label>
+                        <div class="input-group">
+                            <input asp-for="Password" class="form-control form-control-lg"
+                                   placeholder="Enter your password" autocomplete="current-password" />
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Password" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label">
+                                Remember me on this device
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">
+                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                    </button>
+
+                    <div class="text-center">
+                        <p class="mb-0">Don't have an account?</p>
+                        <a asp-action="Register" class="btn btn-link text-decoration-none">
+                            <i class="fas fa-user-plus me-1"></i>Create new account
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Test Account Information -->
+        <div class="card mt-4">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Demo Accounts</h6>
+            </div>
+            <div class="card-body">
+                <p class="small mb-2">Use these accounts for testing:</p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Alice:</strong><br>
+                        <code class="small">alice@test.com</code><br>
+                        <code class="small">Test123!</code>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Bob:</strong><br>
+                        <code class="small">bob@test.com</code><br>
+                        <code class="small">Test123!</code>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <strong>Charlie:</strong><br>
+                        <code class="small">charlie@test.com</code><br>
+                        <code class="small">Test123!</code>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Admin:</strong><br>
+                        <code class="small">admin@test.com</code><br>
+                        <code class="small">Admin123!</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Toggle password visibility
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('@Html.IdFor(m => m.Password)');
+            const icon = this.querySelector('i');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+
+        // Show validation summary if there are errors
+        const validationSummary = document.querySelector('[data-valmsg-summary="true"]');
+        if (validationSummary && validationSummary.innerHTML.trim()) {
+            validationSummary.parentElement.style.display = 'block';
+        }
+    </script>
+}
