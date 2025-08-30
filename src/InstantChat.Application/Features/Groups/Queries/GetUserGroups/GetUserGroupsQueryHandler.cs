@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
+using InstantChat.Domain.Entities;
 using InstantChat.Domain.Interfaces;
 using MediatR;
 
@@ -28,7 +29,7 @@ public class GetUserGroupsQueryHandler : IRequestHandler<GetUserGroupsQuery, Get
             var userGroupParticipations = await _unitOfWork.GroupParticipants.FindAsync(p =>
                 p.UserId == request.UserId && !p.IsDeleted);
 
-            var groups = new List<Domain.Entities.GroupChat>();
+            var groups = new List<GroupChat>();
             foreach (var participation in userGroupParticipations)
             {
                 // Get the group if it's not soft-deleted
@@ -39,9 +40,7 @@ public class GetUserGroupsQueryHandler : IRequestHandler<GetUserGroupsQuery, Get
                     groups.Add(group);
                 }
             }
-
             var groupDtos = _mapper.Map<List<GroupChatDto>>(groups);
-
             return new GetUserGroupsResponse
             {
                 Groups = groupDtos,

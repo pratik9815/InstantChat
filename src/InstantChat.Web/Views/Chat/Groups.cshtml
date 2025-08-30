@@ -1,6 +1,8 @@
-﻿@{
+﻿@using InstantChat.Application.Features.Groups.Queries.GetUserGroups
+@{
     ViewData["Title"] = "Group Chat";
     Layout = "_Layout";
+    var userGroup = ViewBag.UserGroups as IEnumerable<GroupChatDto>;
 }
 
 <div class="row h-100" style="height: calc(100vh - 200px);">
@@ -36,7 +38,7 @@
                             <small class="badge bg-primary rounded-pill">@group.ParticipantCount</small>
                         </button>
                     }
-                    @if (!ViewBag.UserGroups.Any())
+                    @if (!userGroup.Any())
                     {
                         <div class="p-3 text-center text-muted">
                             <i class="fas fa-users fa-2x mb-2"></i>

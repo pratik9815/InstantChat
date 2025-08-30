@@ -31,12 +31,20 @@ public class AccountController : Controller
     {
         if (ModelState.IsValid)
         {
-            var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, false);
-            if (result.Succeeded)
+            try
             {
-                return RedirectToAction("Index", "Chat");
+                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, false);
+                if (result.Succeeded)
+                {
+                    return RedirectToAction("Index", "Chat");
+                }
+                ModelState.AddModelError("", "Invalid login attempt");
             }
-            ModelState.AddModelError("", "Invalid login attempt");
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+
         }
         return View(model);
     }
