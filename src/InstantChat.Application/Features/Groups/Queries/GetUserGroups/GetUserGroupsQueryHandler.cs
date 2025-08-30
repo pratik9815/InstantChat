@@ -47,7 +47,7 @@ public class GetUserGroupsQueryHandler : IRequestHandler<GetUserGroupsQuery, Get
                 Success = true,
                 Message = "User groups retrieved successfully"
             };
-        }
+        } 
         catch (Exception ex)
         {
             return new GetUserGroupsResponse
