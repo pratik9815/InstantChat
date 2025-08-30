@@ -56,6 +56,7 @@ public static class DependencyInjection
         // Services
         services.AddScoped<IChatHubService, ChatHubService>();
         services.AddScoped<IFileStorageService, FileStorageService>();
+        services.AddScoped<IUserRepository, UserRepository>();  
 
         services.AddSignalR(options =>
         {

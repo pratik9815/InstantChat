@@ -62,6 +62,9 @@
                         <button class="btn btn-sm btn-outline-success" id="groupInfoBtn">
                             <i class="fas fa-info-circle me-1"></i>Info
                         </button>
+                        <button class="btn btn-sm btn-outline-primary" id="addUserBtn" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                            <i class="fas fa-user-plus me-1"></i>Add User
+                        </button>
                     </div>
                 </div>
                 <div id="typingIndicator" class="typing-indicator mt-1" style="display: none;">
@@ -172,6 +175,72 @@
     </div>
 </div>
 
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form asp-controller="Chat" asp-action="AddUserToGroup" method="post" id="addUserForm">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addUserModalLabel">
+                        <i class="fas fa-user-plus me-2"></i>Add User to Group
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="addUserGroupId" name="GroupId" />
+                    <div id="selectedUsers" class="mb-3"></div>
+
+                    <div class="mb-3 position-relative">
+                        <label for="userSearchInput" class="form-label fw-semibold">
+                            <i class="fas fa-user me-1"></i>User
+                        </label>
+                        <input type="text" class="form-control" id="userSearchInput" autocomplete="off" placeholder="Type a user name..." />
+                        <div id="userSuggestions" class="list-group position-absolute w-100" style="z-index: 1000; display:none;"></div>
+                        <div class="form-text">Start typing to search users</div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Add User(s)
+                    </button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- Group Info Modal -->
+    <div class="modal fade" id="groupInfoModal" tabindex="-1" aria-labelledby="groupInfoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="groupInfoModalLabel">
+                        <i class="fas fa-info-circle me-2"></i>Group Info
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul id="groupUsersList" class="list-group">
+                        <!-- Users will be appended here dynamically -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
 @section Scripts {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.14/signalr.min.js"></script>
     <script>
@@ -249,23 +318,6 @@
                 }
             });
         });
-
-        function selectGroup(groupId, groupName) {
-            currentGroupId = groupId;
-            currentGroupName = groupName;
-
-            // Reset pagination state
-            resetPaginationState();
-
-            // Update UI
-            updateGroupSelection(groupId);
-            updateChatHeader(groupName);
-            showMessageInput();
-
-            // Join SignalR group and load chat history
-            connection.invoke("JoinGroup", groupId);
-            loadChatHistory(null, groupId, true);
-        }
 
         function sendMessage() {
             if (selectedImageFile) {
@@ -535,6 +587,9 @@
                         <button class="btn btn-sm btn-outline-success" id="groupInfoBtn">
                             <i class="fas fa-info-circle me-1"></i>Info
                         </button>
+                          <button class="btn btn-sm btn-outline-primary" id="addUserBtn" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                             <i class="fas fa-user-plus me-1"></i>Add User
+                         </button>
                     </div>
                 </div>
                 <div id="typingIndicator" class="typing-indicator mt-1" style="display: none;">
@@ -548,7 +603,10 @@
 
         function showMessageInput() {
             document.getElementById("messageInputContainer").style.display = "block";
-            document.getElementById("chatActions").style.display = "block";
+             var chatActions = document.getElementById("chatActions");
+            if (chatActions) {
+                chatActions.style.display = "block";
+            }
         }
 
         function handleTyping() {
@@ -626,5 +684,137 @@
                 document.body.removeChild(modal);
             });
         }
+
+        function selectGroup(groupId, groupName) {
+            currentGroupId = groupId;
+            currentGroupName = groupName;
+
+            // Reset pagination state
+            resetPaginationState();
+
+            // Update UI
+            updateGroupSelection(groupId);
+            updateChatHeader(groupName);
+            showMessageInput();
+
+            // Set hidden groupId for Add User modal
+            document.getElementById("addUserGroupId").value = groupId;
+
+            // Join SignalR group and load chat history
+            connection.invoke("JoinGroup", groupId);
+            loadChatHistory(null, groupId, true);
+        }
+
+        $(document).ready(function() {
+
+            var errorMessage = '@TempData["Error"]';
+            var successMessage = '@TempData["Success"]';
+
+            if (errorMessage) {
+                toastr.error(errorMessage);
+            }
+
+            if (successMessage) {
+                toastr.success(successMessage);
+            }
+
+            let typingTimer;
+            const debounceDelay = 300;
+
+            $('#userSearchInput').on('keyup', function() {
+                clearTimeout(typingTimer);
+                const query = $(this).val().trim();
+
+                if (!query) {
+                    $('#userSuggestions').hide().empty();
+                    return;
+                }
+
+                typingTimer = setTimeout(() => {
+                    $.ajax({
+                        url: '@Url.Action("GetUserByName", "Chat")',
+                        type: 'GET',
+                        data: { name: query },
+                        success: function(users) {
+                            const suggestions = $('#userSuggestions');
+                            suggestions.empty();
+
+                            if (users.length === 0) {
+                                suggestions.hide();
+                                return;
+                            }
+
+                            users.forEach(user => {
+                                suggestions.append(`<button type="button" class="list-group-item list-group-item-action" data-user-id="${user.userId}" data-user-name="${user.name}">${user.name}</button>`);
+                            });
+
+                            suggestions.show();
+                        },
+                        error: function(err) {
+                            console.error("Error fetching users:", err);
+                        }
+                    });
+                }, debounceDelay);
+            });
+
+            // Click on suggestion
+            $(document).on('click', '#userSuggestions button', function() {
+                const userId = $(this).data('user-id');
+                const userName = $(this).data('user-name');
+
+                // Prevent duplicates
+                if ($(`#selectedUsers input[value="${userId}"]`).length === 0) {
+                    $('#selectedUsers').append(`
+                        <div class="badge bg-success text-white me-1 mb-1 d-inline-flex align-items-center">
+                            ${userName}
+                            <input type="hidden" name="UserId" value="${userId}" />
+                            <button type="button" class="btn-close btn-close-white btn-sm ms-1" onclick="this.parentElement.remove()"></button>
+                        </div>
+                    `);
+                }
+
+                $('#userSearchInput').val('');
+                $('#userSuggestions').hide().empty();
+            });
+
+            // Hide suggestions when clicking outside
+            $(document).click(function(e) {
+                if (!$(e.target).closest('#userSearchInput, #userSuggestions').length) {
+                    $('#userSuggestions').hide().empty();
+                }
+            });
+
+           $(document).on('click', '#groupInfoBtn', function() {
+                if (!currentGroupId) return;
+
+                $.ajax({
+                    url: '/Chat/GetUsersInGroup',
+                    type: 'GET',
+                    data: { groupId: currentGroupId },
+                    success: function(users) {
+                        const userList = $('#groupUsersList');
+                        userList.empty();
+                        debugger;
+
+                        if (users.length === 0) {
+                            userList.append('<li class="list-group-item text-muted">No users in this group</li>');
+                        } else {
+                            users.forEach(user => {
+                                userList.append(`<li class="list-group-item"><i class="fas fa-user me-2"></i>${user.displayName}</li>`);
+                            });
+                        }
+                        var modal = new bootstrap.Modal(document.getElementById('groupInfoModal'));
+                        modal.show();
+
+                    },
+                    error: function(err) {
+                        console.error('Error fetching group users:', err);
+                        toastr.error('Failed to load group info');
+                    }
+                });
+            });
+
+        });
+
     </script>
 }

@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using AutoMapper;
+﻿using AutoMapper;
 using InstantChat.Domain.Entities;
 using InstantChat.Domain.Interfaces;
 using MediatR;
@@ -27,14 +22,14 @@ public class GetUserGroupsQueryHandler : IRequestHandler<GetUserGroupsQuery, Get
         {
             // Get active participations for the user
             var userGroupParticipations = await _unitOfWork.GroupParticipants.FindAsync(p =>
-                p.UserId == request.UserId && !p.IsDeleted);
+                p.UserId == request.UserId);
 
             var groups = new List<GroupChat>();
             foreach (var participation in userGroupParticipations)
             {
                 // Get the group if it's not soft-deleted
                 var group = await _unitOfWork.Groups.FirstOrDefaultAsync(g =>
-                    g.Id == participation.GroupChatId && !g.IsDeleted);
+                    g.Id == participation.GroupChatId);
                 if (group != null)
                 {
                     groups.Add(group);

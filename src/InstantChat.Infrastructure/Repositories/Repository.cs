@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Linq.Expressions;
 using InstantChat.Domain.Entities;
 using InstantChat.Domain.Interfaces;
 using InstantChat.Infrastructure.Data;
@@ -80,6 +75,10 @@ public class Repository<T> : IRepository<T> where T : class
         await _dbSet.AddAsync(entity);
     }
 
+    public async Task AddRangeAsync(List<T> entities)
+    {
+        await _dbSet.AddRangeAsync(entities);
+    }
     public void Update(T entity)
     {
         _dbSet.Update(entity);

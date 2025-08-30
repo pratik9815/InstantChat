@@ -18,6 +18,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<ChatMessage>().HasQueryFilter(c => !c.IsDeleted);
+        builder.Entity<GroupChat>().HasQueryFilter(c => !c.IsDeleted);
+        builder.Entity<GroupChatParticipant>().HasQueryFilter(c => !c.IsDeleted);
+
         // Configure ChatMessage
         builder.Entity<ChatMessage>(entity =>
         {
