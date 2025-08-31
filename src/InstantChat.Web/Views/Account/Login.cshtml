@@ -65,7 +65,7 @@
         </div>
 
         <!-- Test Account Information -->
-        <div class="card mt-4">
+        @* <div class="card mt-4">
             <div class="card-header bg-success text-white">
                 <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Demo Accounts</h6>
             </div>
@@ -96,7 +96,8 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> *@
+
     </div>
 </div>
 
@@ -106,6 +107,18 @@
     }
 
     <script>
+
+        $(document).ready(function() {
+             var errorMessage = '@TempData["Error"]';
+             var successMessage = '@TempData["Success"]';
+             if (errorMessage) {
+                toastr.error(errorMessage);
+            }
+            if (successMessage) {
+                toastr.success(successMessage);
+            }
+		});
+
         // Toggle password visibility
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('@Html.IdFor(m => m.Password)');

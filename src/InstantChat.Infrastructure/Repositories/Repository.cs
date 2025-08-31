@@ -69,7 +69,6 @@ public class Repository<T> : IRepository<T> where T : class
         return await _dbSet.FirstOrDefaultAsync(predicate);
     }
 
-
     public async Task AddAsync(T entity)
     {
         await _dbSet.AddAsync(entity);

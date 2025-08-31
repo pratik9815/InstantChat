@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using InstantChat.Domain.Entities;
+using InstantChat.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -10,23 +11,25 @@ public class GetOnlineUsersQueryHandler : IRequestHandler<GetOnlineUsersQuery, G
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMapper _mapper;
+    private readonly IUserRepository _user;
 
-    public GetOnlineUsersQueryHandler(UserManager<ApplicationUser> userManager, IMapper mapper)
+    public GetOnlineUsersQueryHandler(UserManager<ApplicationUser> userManager, IMapper mapper, IUserRepository user)
     {
         _userManager = userManager;
         _mapper = mapper;
+        _user = user;
     }
 
     public async Task<GetOnlineUsersResponse> Handle(GetOnlineUsersQuery request, CancellationToken cancellationToken)
     {
         try
         {
-            var users = await _userManager.Users
+            var orderedUsers = await _userManager.Users
                 .Where(u => u.Id != request.CurrentUserId)
                 .ToListAsync(cancellationToken);
 
-            var userDtos = _mapper.Map<List<UserDto>>(users);
-
+            //var orderedUsers = await _user.GetLatestUsersByMessageAsync(request.CurrentUserId);
+            var userDtos = _mapper.Map<List<UserDto>>(orderedUsers);
             return new GetOnlineUsersResponse
             {
                 Users = userDtos,

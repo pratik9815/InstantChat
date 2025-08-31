@@ -223,6 +223,18 @@
             loadChatHistory(userId, null, true);
         }
 
+        $(document).ready(function() {
+            var errorMessage = '@TempData["Error"]';
+            var successMessage = '@TempData["Success"]';
+            if (errorMessage) {
+                toastr.error(errorMessage);
+            }
+
+            if (successMessage) {
+                toastr.success(successMessage);
+            }
+        });
+
         function sendMessage() {
             if (selectedImageFile) {
                 sendImageMessage();

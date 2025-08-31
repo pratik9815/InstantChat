@@ -40,4 +40,46 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Id == id);  
         return user;
     }
+    public async Task<List<ApplicationUser>> GetLatestUsersByMessageAsync(string currentUserId)
+    {
+        // Step 1: Get latest message timestamp per conversation
+        var latestMessageTimes = await _context.ChatMessages
+            .Where(m => m.SenderId == currentUserId || m.ReceiverId == currentUserId)
+            .GroupBy(m => new { m.SenderId, m.ReceiverId })
+            .Select(g => new
+            {
+                OtherUserId = g.Key.SenderId == currentUserId ? g.Key.ReceiverId : g.Key.SenderId,
+                LastMessageTime = g.Max(m => m.Timestamp)
+            })
+            .OrderByDescending(x => x.LastMessageTime)
+            .ToListAsync();
+
+        if (!latestMessageTimes.Any())
+            return new List<ApplicationUser>();
+
+        // Step 2: Remove duplicate users, keep only the first (latest)
+        var uniqueOtherUserIds = latestMessageTimes
+            .GroupBy(x => x.OtherUserId)
+            .Select(g => g.First())
+            .Select(x => x.OtherUserId)
+            .ToList();
+
+        // Step 3: Fetch all users in one query
+        var users = await _context.Users
+            .Where(u => uniqueOtherUserIds.Contains(u.Id))
+            .ToListAsync();
+
+        // Step 4: Use dictionary for fast lookup
+        var usersDict = users.ToDictionary(u => u.Id);
+
+        // Step 5: Order users by latest message timestamp
+        var orderedUsers = latestMessageTimes
+            .Where(x => usersDict.ContainsKey(x.OtherUserId))
+            .GroupBy(x => x.OtherUserId)          // remove duplicates again, just in case
+            .Select(g => g.First())
+            .Select(x => usersDict[x.OtherUserId])
+            .ToList();
+
+        return orderedUsers;
+    }
 }

@@ -36,8 +36,10 @@ public class AccountController : Controller
                 var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, false);
                 if (result.Succeeded)
                 {
+                    TempData["Success"] = "User logged in successfully";
                     return RedirectToAction("Index", "Chat");
                 }
+                TempData["Error"] = "Invalid login attempt";
                 ModelState.AddModelError("", "Invalid login attempt");
             }
             catch (Exception ex)
