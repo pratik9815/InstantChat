@@ -29,6 +29,7 @@ public class GetOnlineUsersQueryHandler : IRequestHandler<GetOnlineUsersQuery, G
                 .ToListAsync(cancellationToken);
 
             //var orderedUsers = await _user.GetLatestUsersByMessageAsync(request.CurrentUserId);
+
             var userDtos = _mapper.Map<List<UserDto>>(orderedUsers);
             return new GetOnlineUsersResponse
             {
