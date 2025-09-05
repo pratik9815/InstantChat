@@ -361,3 +361,7 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/src/InstantChat.Web/wwwroot/chat-images/6907f0fa-4bc2-4935-a82c-04e9e0135b22_favicon-32x32.png
+/src/InstantChat.Web/wwwroot/chat-images/7e33b505-e5d3-4be4-bf7e-e4852db0225b_pexels-pixabay-35857.jpg
+*.jpg
+*.png

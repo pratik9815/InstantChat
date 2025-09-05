@@ -1,10 +1,11 @@
 ﻿using System.Security.Claims;
+using System.Text.RegularExpressions;
+using InstantChat.Application.Features.Chat.Commands.SendMessage;
 using InstantChat.Domain.Entities;
 using MediatR;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
-using InstantChat.Application.Features.Chat.Commands.SendMessage;
 
 namespace InstantChat.Infrastructure.Hubs;
 [Authorize]
@@ -112,4 +113,5 @@ public class ChatHub : Hub<IChatClient>
                 .NotifyTyping(senderId, sender.DisplayName, isTyping);
         }
     }
+
 }

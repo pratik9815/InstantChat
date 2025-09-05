@@ -15,8 +15,8 @@ public class ChatHubService : IChatHubService
 
     public async Task SendMessageToUserAsync(string userId, string senderId, string senderName, string message, string timestamp, string? imagePath = null)
     {
-        await _hubContext.Clients.User(userId).ReceiveMessage(senderId, senderName, message, timestamp);
-        await _hubContext.Clients.User(senderId).ReceiveMessage(senderId, senderName, message, timestamp);
+        await _hubContext.Clients.User(userId).ReceiveMessage(senderId, senderName, message, timestamp, imagePath);
+        await _hubContext.Clients.User(senderId).ReceiveMessage(senderId, senderName, message, timestamp, imagePath);
     }
 
     public async Task SendMessageToGroupAsync(int groupId, string senderId, string senderName, string message, string timestamp, string? imagePath = null)

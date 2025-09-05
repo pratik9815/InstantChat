@@ -141,10 +141,11 @@
 
         // Start SignalR connection
         connection.start().then(function () {
-            console.log("Connected to ChatHub");
+            // console.log("Connected to ChatHub");
         }).catch(function (err) {
-            console.error("Connection failed:", err);
-            showError("Failed to connect to chat server. Please refresh the page.");
+            // console.error("Connection failed:", err);
+            let errorMessage = "Failed to connect to chat server. Please refresh the page."
+            toastr.error(errorMessage);
         });
 
         // SignalR event handlers
@@ -254,8 +255,8 @@
                         stopTypingNotification();
                     })
                     .catch(err => {
-                        console.error("Failed to send message:", err);
-                        showError("Failed to send message. Please try again.");
+                        let errorMessage = "Failed to send message. Please try again."; 
+                        toastr.error(errorMessage);
                     });
             }
         }
@@ -284,12 +285,14 @@
                     removeSelectedImage();
                     document.getElementById("messageInput").value = "";
                 } else {
+					let errorMessage = data.message || "Failed to send image. Please try again.";
+                    toastr.error(errorMessage);
                     showError(data.message || "Failed to send image");
                 }
             })
             .catch(error => {
-                console.error("Error sending image:", error);
-                showError("Failed to send image. Please try again.");
+				let errorMessage = "Failed to send image. Please try again.";
+				showError(errorMessage);
             })
             .finally(() => {
                 // Restore button state
@@ -569,7 +572,7 @@
         }
 
         function showError(message) {
-            alert('Error: ' + message);
+            toastr.error(message);
         }
 
         function loadMoreMessages() {
